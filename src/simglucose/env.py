@@ -73,14 +73,14 @@ class SimglucoseDiscEnv(T1DSimEnv):
                 patient_name = random.choice(filtered_patients)
             else:
                 patient_name = random.choice(patient_names)
-        self.ACTIONS = [0, 0.01, 0.1, 1, 10]
+        self.ACTIONS = [0, 0.01, 0.1, 0.2, 0.4, 0.8,  1, 2, 4, 8, 10]
         self.i = 0
         super(SimglucoseDiscEnv, self).__init__(patient_name, **kwargs)
 
     def step(self, action):
         basal_val = self.ACTIONS[action]
         observation, reward, done, info = self._step(basal_val)
-        print(action)
+        print(basal_val)
         print(self.i)
         self.i += 1
         print(observation)
