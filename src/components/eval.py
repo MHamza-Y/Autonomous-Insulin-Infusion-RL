@@ -33,7 +33,8 @@ def eval_env(ray, epochs, env_creator, env_kwargs, checkpoint_path, render=False
         workers = 1
     divided_epochs = get_evenly_divided_values(epochs, workers)
     tmp_env = env_creator(env_kwargs)
-    policy_kwargs = dict(checkpoint_path=checkpoint_path, obs_space=tmp_env.observation_space)
+    policy_kwargs = dict(checkpoint_path=checkpoint_path, obs_space=tmp_env.observation_space,
+                         action_space=tmp_env.action_space)
 
     evaluators = [EvaluationActor.remote(env_creator=env_creator, env_kwargs=env_kwargs, policy_class=Policy,
                                          policy_kwargs=policy_kwargs) for _ in range(workers)]

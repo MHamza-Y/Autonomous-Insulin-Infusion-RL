@@ -80,6 +80,7 @@ class SimglucoseDiscEnv(T1DSimEnv):
     def step(self, action):
         basal_val = self.ACTIONS[action]
         observation, reward, done, info = self._step(basal_val)
+        print(action)
         print(self.i)
         self.i += 1
         print(observation)
