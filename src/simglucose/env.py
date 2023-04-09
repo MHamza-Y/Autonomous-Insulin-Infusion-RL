@@ -1,33 +1,26 @@
+import random
+
 import numpy as np
 import pandas as pd
-from ray.tune.registry import register_env
-import random
 import pkg_resources
+from gym import spaces
+from ray.tune.registry import register_env
+from simglucose.controller.base import Action
 from simglucose.envs import T1DSimEnv
-
-# from simglucose.envs.simglucose_gym_env import T1DSimEnv
 
 PATIENT_PARA_FILE = pkg_resources.resource_filename(
     'simglucose', 'params/vpatient_params.csv')
-
 patient_params = pd.read_csv(PATIENT_PARA_FILE)
 patient_names = patient_params['Name'].values
 
-from simglucose.simulation.env import T1DSimEnv as _T1DSimEnv
-from simglucose.patient.t1dpatient import T1DPatient
-from simglucose.sensor.cgm import CGMSensor
-from simglucose.actuator.pump import InsulinPump
-from simglucose.simulation.scenario_gen import RandomScenario
-from simglucose.controller.base import Action
-import numpy as np
-import pkg_resources
-import gym
-from gym import spaces
-from gym.utils import seeding
-from datetime import datetime
+OBS_MIN = np.array([0, 0])
+OBS_MAX = np.array([400, 10])
 
-PATIENT_PARA_FILE = pkg_resources.resource_filename(
-    'simglucose', 'params/vpatient_params.csv')
+
+def calculate_base_observation(bg_value, insulin_value):
+
+    obs = np.array([bg_value[0], insulin_value], dtype=np.float32)
+    return obs
 
 
 class SimglucoseEnv(T1DSimEnv):
@@ -39,18 +32,36 @@ class SimglucoseEnv(T1DSimEnv):
             else:
                 patient_name = random.choice(patient_names)
 
+        self.i = 0
         super(SimglucoseEnv, self).__init__(patient_name, **kwargs)
 
-    def step(self, action):
+    def _step(self, action):
 
-        basal_val = 0
-        if action[0]:
-            basal_val = action[1][0]
-        observation, reward, done, info = self._step(basal_val)
-        return np.asarray(observation), reward, done, info
+        self.i += 1
+        act = Action(basal=action, bolus=0)
+        if self.reward_fun is None:
+            bg_value, reward, done, info = self.env.step(act)
+        else:
+            bg_value, reward, done, info = self.env.step(act, reward_fun=self.reward_fun)
+
+        print(self.i)
+        print(bg_value)
+        print(action)
+        obs_dict = calculate_base_observation(bg_value, action)
+        return obs_dict, reward, done, info
+
+    def _reset(self):
+        self.env, _, _, _ = self._create_env_from_random_state(self.custom_scenario)
+        obs, _, _, _ = self.env.reset()
+        return calculate_base_observation(obs, 0)
+
+    def step(self, action):
+        print(action)
+        print(self.i)
+        return self._step(action)
 
     def reset(self, **kwargs):
-        return np.asarray(self._reset())
+        return self._reset()
 
     def seed(self, seed=None):
         return self._seed(seed)
@@ -60,70 +71,30 @@ class SimglucoseEnv(T1DSimEnv):
 
     @property
     def action_space(self):
-        ub = self.env.pump._params['max_basal']
-        num_actions = 2
-        return spaces.Tuple((spaces.Discrete(num_actions), spaces.Box(low=0, high=ub, shape=(1,))))
+        ub = 1
+        return spaces.Box(low=0, high=ub, shape=(1,))
+
+    @property
+    def observation_space(self):
+
+        return spaces.Box(low=OBS_MIN, high=OBS_MAX, shape=(OBS_MAX.size,), dtype=np.float32)
 
 
-class SimglucoseDiscEnv(T1DSimEnv):
-    def __init__(self, patient_name=None, patient_type=None, **kwargs):
-        if patient_name is None:
-            if patient_type:
-                filtered_patients = [p for p in patient_names if patient_type in p]
-                patient_name = random.choice(filtered_patients)
-            else:
-                patient_name = random.choice(patient_names)
-        self.ACTIONS = [0, 0.01, 0.1, 0.2, 0.4, 0.8,  1, 2, 4, 8, 10]
-        self.i = 0
-        super(SimglucoseDiscEnv, self).__init__(patient_name, **kwargs)
+class SimglucoseDiscEnv(SimglucoseEnv):
+    def __init__(self, **kwargs):
+        self.ACTIONS = [0, 0.01, 0.02, 0.04, 0.08, 0.1,
+                        0.2]  # [0, 0.01, 0.1, 0.2, 0.4, 0.8, 1, 2, 4]  # [0, 0.01, 0.1, 0.2, 0.4, 0.8, 1, 2, 4, 8, 10]
+        super(SimglucoseDiscEnv, self).__init__(**kwargs)
 
     def step(self, action):
         basal_val = self.ACTIONS[action]
         observation, reward, done, info = self._step(basal_val)
-        print(basal_val)
-        print(self.i)
-        self.i += 1
-        print(observation)
-        return np.asarray(observation), reward, done, info
-
-    def reset(self, **kwargs):
-        return np.asarray(self._reset())
-
-    def seed(self, seed=None):
-        return self._seed(seed)
-
-    def render(self, mode="human", **kwargs):
-        self._render(mode)
+        return observation, reward, done, info
 
     @property
     def action_space(self):
         num_actions = len(self.ACTIONS)
         return spaces.Discrete(num_actions)
-
-
-class SimglucoseNPEnv(T1DSimEnv):
-    def __init__(self, patient_name=None, patient_type=None, **kwargs):
-        if patient_name is None:
-            if patient_type:
-                filtered_patients = [p for p in patient_names if patient_type in p]
-                patient_name = random.choice(filtered_patients)
-            else:
-                patient_name = random.choice(patient_names)
-
-        super(SimglucoseNPEnv, self).__init__(patient_name, **kwargs)
-
-    def step(self, action):
-        observation, reward, done, info = self._step(action)
-        return np.asarray(observation), reward, done, info
-
-    def reset(self, **kwargs):
-        return np.asarray(self._reset())
-
-    def seed(self, seed=None):
-        return self._seed(seed)
-
-    def render(self, mode="human", **kwargs):
-        self._render(mode)
 
 
 def env_creator(env_config):
@@ -132,7 +103,7 @@ def env_creator(env_config):
     :param env_config: The parameter used by RlLib to pass extra initialization parameters to the environment
     :return: the platform environment object
     """
-    return SimglucoseDiscEnv(**env_config)
+    return SimglucoseEnv(**env_config)
 
 
 def register_simglucose_env(env_name):
