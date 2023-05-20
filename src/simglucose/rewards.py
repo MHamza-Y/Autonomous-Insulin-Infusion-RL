@@ -174,13 +174,13 @@ def smooth_reward(BG_last_hour):
 def tan_reward(BG_last_hour):
     current_bg = BG_last_hour[-1]
     if current_bg < REF_BG_POINT:
-        z = (current_bg - REF_BG_POINT) / (REF_BG_POINT - LOW_BG_SAFE_LIMIT) * 2
+        z = (current_bg - REF_BG_POINT) / (REF_BG_POINT - LOW_BG_SAFE_LIMIT) * .8
         reward = np.tanh(z)
     else:
         z = (REF_BG_POINT - current_bg) / (HIGH_BG_SAFE_LIMIT - REF_BG_POINT) * 2
         reward = np.tanh(z)
 
-    reward += 0.7
+    reward += 0.6
     reward = reward if reward >= 0 else 0.1 * reward
     return reward
 
@@ -208,3 +208,7 @@ def uniform_reward_with_risk(BG_last_hour):
         reward *= risk_idx_norm
 
     return reward
+
+
+def const_reward(BG_last_hour):
+    return 0.1

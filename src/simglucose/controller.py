@@ -1,13 +1,13 @@
 import numpy as np
 from simglucose.controller.base import Controller, Action
 
-from src.rllib_utills.policies_wrapper import Policy
+from src.rllib_utills.policies_wrapper import RLLibPolicy
 
 
 class SimGlucoseController(Controller):
 
     def __init__(self, checkpoint_path, obs_space, sample_action=False):
-        self.trained_policy = Policy(checkpoint_path=checkpoint_path, obs_space=obs_space)
+        self.trained_policy = RLLibPolicy(checkpoint_path=checkpoint_path, obs_space=obs_space)
         self.init_state = 0
         self.sample_action = sample_action
         super().__init__(self.init_state)

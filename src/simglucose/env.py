@@ -14,11 +14,12 @@ patient_params = pd.read_csv(PATIENT_PARA_FILE)
 patient_names = patient_params['Name'].values
 
 OBS_MIN = np.array([0, 0])
-OBS_MAX = np.array([400, 10])
+OBS_MAX = np.array([420, 10])
 
 
-def calculate_base_observation(bg_value, insulin_value):
-
+def calculate_base_observation(bg_value, insulin_value, meal):
+    meal_indicator = int(meal > 0.0)
+    #obs = (meal_indicator, np.array([bg_value[0], insulin_value], dtype=np.float32))
     obs = np.array([bg_value[0], insulin_value], dtype=np.float32)
     return obs
 
@@ -47,13 +48,15 @@ class SimglucoseEnv(T1DSimEnv):
         print(self.i)
         print(bg_value)
         print(action)
-        obs_dict = calculate_base_observation(bg_value, action)
+        meal = info['meal']
+        print(meal)
+        obs_dict = calculate_base_observation(bg_value, action, meal)
         return obs_dict, reward, done, info
 
     def _reset(self):
         self.env, _, _, _ = self._create_env_from_random_state(self.custom_scenario)
         obs, _, _, _ = self.env.reset()
-        return calculate_base_observation(obs, 0)
+        return calculate_base_observation(obs, 0, 0)
 
     def step(self, action):
         print(action)
@@ -71,12 +74,19 @@ class SimglucoseEnv(T1DSimEnv):
 
     @property
     def action_space(self):
-        ub = 1
+        ub = 10
         return spaces.Box(low=0, high=ub, shape=(1,))
 
     @property
     def observation_space(self):
 
+        # return spaces.Tuple(
+        #     (
+        #         spaces.Discrete(2),
+        #         spaces.Box(low=OBS_MIN, high=OBS_MAX, shape=(OBS_MAX.size,), dtype=np.float32)
+        #
+        #     )
+        # )
         return spaces.Box(low=OBS_MIN, high=OBS_MAX, shape=(OBS_MAX.size,), dtype=np.float32)
 
 

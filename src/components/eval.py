@@ -3,7 +3,7 @@ import warnings
 import pandas as pd
 
 from src.base_rl.evaluation import EvaluationActor
-from src.rllib_utills.policies_wrapper import Policy
+from src.rllib_utills.policies_wrapper import RLLibPolicy
 
 
 def get_evenly_divided_values(value_to_be_distributed, times):
@@ -36,7 +36,7 @@ def eval_env(ray, epochs, env_creator, env_kwargs, checkpoint_path, render=False
     policy_kwargs = dict(checkpoint_path=checkpoint_path, obs_space=tmp_env.observation_space,
                          action_space=tmp_env.action_space)
 
-    evaluators = [EvaluationActor.remote(env_creator=env_creator, env_kwargs=env_kwargs, policy_class=Policy,
+    evaluators = [EvaluationActor.remote(env_creator=env_creator, env_kwargs=env_kwargs, policy_class=RLLibPolicy,
                                          policy_kwargs=policy_kwargs) for _ in range(workers)]
 
     evaluators_futures = [evaluator.evaluate.remote(epochs=divided_epochs[i], render=False) for i, evaluator in
